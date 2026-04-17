@@ -144,25 +144,28 @@ export function compressWakeContext(wakePayload: unknown): string {
 
 export function compressBootstrapPrompt(template: string): string {
   // Remove: "You are agent X with these capabilities"
-  // Keep: "Agent X. Task: [task]. Workspace: [path]."
-  // Expected reduction: 80-90%
+  // Keep: "Agent X. Task: [task]. Workspace: [path]." when present.
+  // Otherwise preserve the cleaned bootstrap content.
 
   let compressed = template;
 
   // Remove capability descriptions
   compressed = compressed.replace(/You are[\s\S]*?capabilities:/gi, '');
   compressed = compressed.replace(/Your capabilities include[\s\S]*?You can:/gi, '');
+  compressed = compressed.replace(/\s+/g, ' ').trim();
 
-  // Extract agent name and task
-  const agentMatch = template.match(/agent\s+([^\s.]+)/i);
-  const taskMatch = template.match(/Task:\s*([^\n]+)/i);
-  const workspaceMatch = template.match(/Workspace:\s*([^\n]+)/i);
+  const agentMatch = compressed.match(/agent\s+([^\s.]+)/i);
+  const taskMatch = compressed.match(/Task:\s*([^\n.]+)/i);
+  const workspaceMatch = compressed.match(/Workspace:\s*([^\n.]+)/i);
 
-  const agent = agentMatch ? agentMatch[1] : 'Agent';
-  const task = taskMatch ? taskMatch[1] : 'Unknown task';
-  const workspace = workspaceMatch ? workspaceMatch[1] : 'Unknown workspace';
+  if (agentMatch || taskMatch || workspaceMatch) {
+    const agent = agentMatch ? agentMatch[1] : 'Agent';
+    const task = taskMatch ? taskMatch[1] : 'Unknown task';
+    const workspace = workspaceMatch ? workspaceMatch[1] : 'Unknown workspace';
+    return `Agent: ${agent}. Task: ${task}. Workspace: ${workspace}.`;
+  }
 
-  return `Agent: ${agent}. Task: ${task}. Workspace: ${workspace}.`;
+  return compressed || template;
 }
 
 export function compressEnvironmentNotes(env: Record<string, string>): string {
